@@ -12,4 +12,4 @@ This is a lightweight bottle service that listens on port 17771 for incoming JSO
 3. body(html format allowed)
 4. mimetext(default plain)
 
-and this email is send using the alerts@wipeos.com account via the Google SMTP server.
+and this email is send using the alerts@wipeos.com account via the Google SMTP server. This is a service configure in /etc/systemd/system/wipeos-email.service. The python script is run in a virtual environment in /home/rmartin/sendmail
