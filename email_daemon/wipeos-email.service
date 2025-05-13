@@ -1,0 +1,13 @@
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=rmartin
+WorkingDirectory=/home/rmartin/sendmail
+ExecStart=/home/rmartin/sendmail/bin/python3 /home/rmartin/sendmail/wipeos_sendmail_daemon.py
+
+[Install]
+WantedBy=multi-user.target
