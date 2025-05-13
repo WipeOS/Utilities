@@ -38,7 +38,7 @@ def expiration(cert):
 immediately_failing = []
 soon_to_fail = []
 
-def check_all_certs(filepath='/home/rfkmartin/certs'):
+def check_all_certs(filepath='/opt/certificate_authority/intermediate/clients/cert/'):
   certs = list_files_by_type(filepath, ".pem")
   for cert in certs:
     c = open_cert(cert)
@@ -69,7 +69,7 @@ try:
     for l in last_sync:
       body += '<tr><td align ="left">{}</td><td align ="left">{}</td><td align ="left">{}</td><td align ="left">{}</td><td align ="left">{}</td></tr>'.format(l[0],l[2],s[1],s[0].strftime('%Y-%m-%d'),l[3].strftime('%Y-%m-%d'))
   body += '</table></html>'
-  data = {"to": "rfkmartin@gmail.com","subject": "Appliance Certificate Expiration Check", "body": body, "mimetype": "html"}
+  data = {"to": "developers@wipeos.com","subject": "Appliance Certificate Expiration Check", "body": body, "mimetype": "html"}
   headers = {"Content-Type": "application/json"}
   json_data = json.dumps(data)
   dest = 'http://{}:{}/{}'.format(SERVER, PORT, ENDPOINT)
