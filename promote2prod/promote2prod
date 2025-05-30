@@ -1,0 +1,14 @@
+!/bin/bash
+
+# Prompt the user for input
+read -p "Enter the new version: " version
+
+# delete existing PRD
+rm -rf /var/www/jankins/wipeos/PRD
+# copy from STG
+cp -r /var/www/jankins/wipeos/STG /var/www/jankins/wipeos/PRD
+# add /usr/sbin/wipeosinfo with new version
+mkdir -p /var/www/jankins/wipeos/PRD/usr/sbin && cp /home/wipeos/wipeosinfo /var/www/jankins/wipeos/PRD/usr/sbin/
+sed -i "s/XXXX/$version/g" /var/www/jankins/wipeos/PRD/usr/sbin/wipeosinfo
+# update recipe to PRD
+echo 'PRD' > /var/www/jankins/wipeos/PRD/home/root/recipe.txt
