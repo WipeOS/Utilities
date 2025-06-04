@@ -75,13 +75,45 @@ def get_version_hash(appliance):
         for r in sorted_repo_list:
             hash += r[1]
         return hash
-
     except FileNotFoundError:
         return "File not found."
 
+def update_disk_usage(appliance, wipebox_id):
+    filename = "{}_diskusage.txt".format(appliance)
+    try:
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+        for line in lines[1:]:
+            mountpt = line.strip().split()
+            total = mountpt[1][:-1]
+            used = mountpt[2][:-1]
+            available = mountpt[3][:-1]
+            percent_used = mountpt[4][:-1] 
+            mount_point = mountpt[5]
+            dest = 'http://{}:{}/{}'.format('localhost', '8090', "insert_disk_usage")
+            data = {"wipebox_id": wipebox_id, "mount_point": mount_point, "used": used, "total": total, "available": available, "percent_used": percent_used}
+            response = requests.post(dest, data = json.dumps(data), headers=headers)
+    except FileNotFoundError:
+        print("File not found.")
+
+def update_generic_config(appliance, wipebox_id):
+    filename = "{}_generic_config.txt".format(appliance)
+    try:
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+        for line in lines[2:-1]:
+            field = json.loads(line.strip())
+            print("{}: {}".format(field.get("name"), field.get("value")))
+            dest = 'http://{}:{}/{}'.format('localhost', '8090', "insert_generic_config")
+            data = {"wipebox_id": wipebox_id, "name": field.get("name"), "value": field.get("value")}
+            response = requests.post(dest, data = json.dumps(data), headers=headers)
+            print("Response: {}".format(response.text))
+    except FileNotFoundError:
+        print("File not found.")
+
 if __name__ == '__main__':
     appliances = get_appliances()
-    print(appliances)
+    # print(appliances)
     version = get_versions()
 
     for appliance,last in appliances:
@@ -91,18 +123,13 @@ if __name__ == '__main__':
         try:
             response = requests.get(dest, headers=headers)
             if response.text != "True":
-                print("{}: {}".format(appliance, hash))
+                data = {"cert": appliance,"hash": "-1", "last_update": last}
             else:
-                dest = 'http://{}:{}/{}'.format('localhost', '8090', "insert_wipebox")
                 data = {"cert": appliance,"hash": hash, "last_update": last}
-                response = requests.post(dest, data = json.dumps(data), headers=headers)
-                print("Response: {}, {}".format(response.status_code, response.text))
-                print("Inserted {}: {}".format(appliance, hash))
-
+            dest = 'http://{}:{}/{}'.format('localhost', '8090', "insert_wipebox")
+            response = requests.post(dest, data = json.dumps(data), headers=headers)
+            update_disk_usage(appliance, response.json().get("id"))
+            update_generic_config(appliance, response.json().get("id"))
         except Exception as e:
             print("An unexpected error occurred: {}".format(e))
-            print("FAILURE: {}".format(json.dumps(data)))
-    # for each appliance, see if the version is in the db
-    # if so, update last sync and version anddisk usage
-    # if not, add it and add new entries for disk_usage
 
