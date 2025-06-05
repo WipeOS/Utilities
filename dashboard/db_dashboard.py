@@ -22,17 +22,54 @@ class DB:
         self.repo_index = {}
         self.mount_points = []
         self.db_portal_info = {}
+        self.formatted_disk_usage = {}
         self.pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="mypool", pool_size=5, **DB_CREDENTIALS)
 
 @route('/up')
 def is_up():
     return {"status":"up"}
+
 @route('/get_update_info')
 def get_update_info():
-
+    db.formatted_disk_usage = format_disk_usage()
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("select cert,version_string,date_format(last_update, '%Y/%m/%d %H:%i:%s') AS last_update from wipebox w join version v on w.version_id=v.version_id")
+        results = cursor.fetchall()
+        update_info = {}
+        for r in results:
+            update_info[r[0]] = {
+                "version": r[1],
+                "last_update": r[2]
+            }
+        all_wipeboxes = []
+        for wipebox in db.db_portal_info:
+            current_wipebox = db.db_portal_info[wipebox]
+            if wipebox in update_info:
+                current_wipebox['disk_usage'] = db.formatted_disk_usage.get(wipebox, "")
+                current_wipebox['last_update'] = update_info[wipebox]['last_update']
+                current_wipebox['version'] = update_info[wipebox]['version']
+            else:
+                current_wipebox['disk_usage'] = ""
+                current_wipebox['last_update'] = ""
+            all_wipeboxes.append(current_wipebox)
+        response.set_header('Access-Control-Allow-Origin', '*')
+    except Exception as e:
+        response.status = 500
+        return {"status": "error", "message": str(e)}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+    return {"status": "success", "data": all_wipeboxes}
 
 @route('/get_portal_info')
 def get_portal_info():
+    return {"status": "success", "data": db.db_portal_info}
+
+def portal_info():
     try:
         connection = psycopg2.connect(
             host="login.wipeos.com",
@@ -43,13 +80,12 @@ def get_portal_info():
         cursor = connection.cursor()
         cursor.execute("SELECT row_to_json(t) FROM (SELECT name,system_id,(select value from wipers_settings where setting='siteid' and system_id=ww.system_id),to_char(last_sync, 'YYYY/MM/DD HH24:MI:SS') as last_sync,version from wipers_wipebox ww join account_account aa on aa.id=ww.account_id where last_sync>=current_date-90) t")
         result = cursor.fetchall()
-        all_boxes_last_90_days = []
+        all_boxes_last_90_days = {}
         for r in result:
-            all_boxes_last_90_days.append(r[0])
-        return {"status": "success", "data": all_boxes_last_90_days}
+            all_boxes_last_90_days[r[0]['system_id']] = r[0]
+        return all_boxes_last_90_days
     except psycopg2.Error as error:
-        logger.error("Error while connecting to PostgreSQL", error) #error checking for actual connection?
-        return {"status": "failure", "message": str(error)}
+        logger.error("Error while connecting to PostgreSQL", error)
     finally: #end closing connection
         if connection:
             cursor.close()
@@ -155,6 +191,25 @@ def insert_disk_usage():
         response.status = 500
         return {"status": "error", "message": str(e)}
 
+def format_disk_usage():
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("select cert,concat('<table><tr><th>Mount Point</th><th>Size</th><th>Percent Used</th></td>',group_concat(tble order by t.wipebox_id separator ''),'</table>') from (select du.wipebox_id,concat('<tr><td>',mount_point,'</td><td>',total,'G</td><td>(',percent_used,'%)</td></tr>') as tble from disk_usage du join mount_point mp on du.mount_point_id=mp.mount_point_id order by du.wipebox_id) t join wipebox w on t.wipebox_id=w.wipebox_id group by t.wipebox_id")
+        results = cursor.fetchall()
+        disk_usage = {}
+        for r in results:
+            disk_usage[r[0]] = r[1]
+        return disk_usage
+    except Exception as e:
+        logger.error("Error formatting disk usage: %s", str(e))
+        return {}
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 @route('/insert_generic_config', method='POST')
 def insert_generic_config():
     data = request.json
@@ -248,5 +303,5 @@ if __name__ == '__main__':
     logger.info("Repository Index: %s", db.repo_index)
     db.mount_points = get_mount_points()
     logger.info("Mount Points: %s", db.mount_points)
-    db.db_portal_info = get_portal_info()
-    run(host='0.0.0.0', port=8090, debug=True, quiet=True,reloader=True)
+    db.db_portal_info = portal_info()
+    run(host='0.0.0.0', port=8090, debug=True, quiet=True, reloader=True)
