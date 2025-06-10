@@ -76,7 +76,7 @@ insert into repository (repo_name, remote_url) values ('WipeOS-Bottle', 'github.
 
 insert into mount_point (mount_point) values ('/');
 insert into mount_point (mount_point) values ('/var/volatile/log');
-insert into mount_point (mount_point) values ('/var/volatile/tmp');
+insert into mount_point (mount_point) values ('/var/volatile');
 insert into mount_point (mount_point) values ('/var/lib/postgresql');
 insert into mount_point (mount_point) values ('/var/lib/postgresql/images');
 
