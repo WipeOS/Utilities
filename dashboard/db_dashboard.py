@@ -35,7 +35,7 @@ def get_update_info():
     try:
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("select cert,version_string,date_format(last_update, '%Y/%m/%d %H:%i:%s') AS last_update from wipebox w join version v on w.version_id=v.version_id")
+        cursor.execute("select wipebox_id,version_string,date_format(last_update, '%Y/%m/%d %H:%i:%s') AS last_update from wipebox w join version v on w.version_id=v.version_id")
         results = cursor.fetchall()
         update_info = {}
         for r in results:
@@ -101,8 +101,7 @@ def insert_wipebox():
         logger.info("Inserting wipebox with cert: %s, version hash: %s, version index: %s, last_update: %s", certificate, version_id,db.version_hashes[version_id], last_update)
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO wipebox (cert, version_id, last_update) VALUES (%s, %s, %s)", (certificate, db.version_hashes[version_id], last_update))
-        last_row_id = cursor.lastrowid
+        cursor.execute("INSERT INTO wipebox (wipebox_id, version_id, last_update) VALUES (%s, %s, %s)", (certificate, db.version_hashes[version_id], last_update))
         conn.commit()
         cursor.close()
         conn.close()
@@ -111,12 +110,13 @@ def insert_wipebox():
         response.status = 500
         return {"status": "error", "message": str(e)}
     logger.info("Wipebox inserted successfully with cert: %s", certificate)
-    return {"status": "success", "cert": certificate, "id": last_row_id}
+    response.status = 200
+    return {"status": "success", "cert": certificate}
 
 def get_unique_wipeboxes():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT distinct(cert) FROM wipebox")
+    cursor.execute("SELECT distinct(wipebox_id) FROM wipebox")
     results = cursor.fetchall()
     wipeboxes = []
     for r in results:
@@ -195,7 +195,7 @@ def format_disk_usage():
     try:
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("select cert,concat('<table><tr><th>Mount Point</th><th>Size</th><th>Percent Used</th></td>',group_concat(tble order by t.wipebox_id separator ''),'</table>') from (select du.wipebox_id,concat('<tr><td>',mount_point,'</td><td>',total,'G</td><td>(',percent_used,'%)</td></tr>') as tble from disk_usage du join mount_point mp on du.mount_point_id=mp.mount_point_id order by du.wipebox_id) t join wipebox w on t.wipebox_id=w.wipebox_id group by t.wipebox_id")
+        cursor.execute("select t.wipebox_id,concat('<table><tr><th>Mount Point</th><th>Size</th><th>Percent Used</th></td>',group_concat(tble order by t.wipebox_id separator ''),'</table>') from (select du.wipebox_id,concat('<tr><td>',mount_point,'</td><td>',total,'G</td><td>(',percent_used,'%)</td></tr>') as tble from disk_usage du join mount_point mp on du.mount_point_id=mp.mount_point_id order by du.wipebox_id) t join wipebox w on t.wipebox_id=w.wipebox_id group by t.wipebox_id")
         results = cursor.fetchall()
         disk_usage = {}
         for r in results:
