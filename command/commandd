@@ -1,0 +1,35 @@
+    #!/bin/bash
+    # /etc/init.d/commandd
+
+    PYTHON_SCRIPT="/usr/bin/commandd.py"
+    PYTHON_BIN="/usr/bin/python"
+
+    case "$1" in
+        start)
+            echo "Starting command daemon..."
+            $PYTHON_BIN $PYTHON_SCRIPT >> /var/log/rawcommandd 2>&1 &
+            ;;
+        stop)
+            echo "Stopping command daemon..."
+            pkill -f "$PYTHON_SCRIPT"
+            ;;
+        restart)
+            echo "Restarting command daemon..."
+            $0 stop
+            sleep 1
+            $0 start
+            ;;
+        status)
+            if pgrep -f "$PYTHON_SCRIPT" > /dev/null; then
+                echo "command daemon is running"
+            else
+                echo "command daemon is stopped"
+            fi
+            ;;
+        *)
+            echo "Usage: $0 {start|stop|restart|status}"
+            exit 1
+            ;;
+    esac
+
+    exit 0
