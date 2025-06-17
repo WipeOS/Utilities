@@ -9,8 +9,7 @@ create table version (
 );
 
 create table wipebox (
-    wipebox_id int not null auto_increment,
-    cert int not null,
+    wipebox_id int not null,
     version_id int not null,
     last_update timestamp not null default '2025-04-01 00:00:00',
     primary key(wipebox_id),
