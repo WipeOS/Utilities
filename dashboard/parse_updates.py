@@ -48,7 +48,6 @@ def get_versions():
                 versions.append(version)
         except Exception as e:
             print("An unexpected error occurred: {}".format(e))
-            print("FAILURE: {}".format(json_data))
     dest = 'http://{}:{}/{}'.format(SERVER, PORT, "update_versions")
     response = requests.get(dest, headers=headers)
     return versions
@@ -61,7 +60,7 @@ def get_version_hash(appliance):
         with open(filename, 'r') as file:
             lines = file.readlines()
         if lines[0].strip() != "PRD":
-            return ""
+            return "xxx"
         repo_list = {}
         for line in range(1, len(lines)):
             repo = lines[line].strip().split(": ")
@@ -70,7 +69,6 @@ def get_version_hash(appliance):
                 response = requests.get(dest, headers=headers)
             except Exception as e:
                 print("An unexpected error occurred: {}".format(e))
-                print("FAILURE: {}".format(json_data))
             repo_list[int(response.text)] = repo[1]
         sorted_repo_list = sorted(repo_list.items(), key=lambda x: x[0])
         hash = ""
@@ -78,7 +76,8 @@ def get_version_hash(appliance):
             hash += r[1]
         return hash
     except FileNotFoundError:
-        return "File not found."
+        print("File not found: {}".format(filename))
+        return "xxx"
 
 def update_disk_usage(appliance, wipebox_id):
     filename = "{}_diskusage.txt".format(appliance)
@@ -96,22 +95,20 @@ def update_disk_usage(appliance, wipebox_id):
             data = {"wipebox_id": wipebox_id, "mount_point": mount_point, "used": used, "total": total, "available": available, "percent_used": percent_used}
             response = requests.post(dest, data = json.dumps(data), headers=headers)
     except FileNotFoundError:
-        print("File not found.")
+        print("File not found: {}".format(filename))
 
-def update_generic_config(appliance, wipebox_id):
+def update_generic_config(appliance):
     filename = "{}_generic_config.txt".format(appliance)
     try:
         with open(filename, 'r') as file:
             lines = file.readlines()
-        for line in lines[2:-1]:
+        for line in lines[2:-2]:
             field = json.loads(line.strip())
-            print("{}: {}".format(field.get("name"), field.get("value")))
             dest = 'http://{}:{}/{}'.format(SERVER, PORT, "insert_generic_config")
-            data = {"wipebox_id": wipebox_id, "name": field.get("name"), "value": field.get("value")}
+            data = {"wipebox_id": appliance, "name": field.get("name"), "value": field.get("value")}
             response = requests.post(dest, data = json.dumps(data), headers=headers)
-            print("Response: {}".format(response.text))
     except FileNotFoundError:
-        print("File not found.")
+        print("File not found: {}".format(filename))
 
 if __name__ == '__main__':
     appliances = get_appliances()
@@ -130,8 +127,9 @@ if __name__ == '__main__':
                 data = {"cert": appliance,"hash": hash, "last_update": last}
             dest = 'http://{}:{}/{}'.format(SERVER, PORT, "insert_wipebox")
             response = requests.post(dest, data = json.dumps(data), headers=headers)
-            update_disk_usage(appliance, response.json().get("id"))
-            update_generic_config(appliance, response.json().get("id"))
+            txt = response.json()
+            update_disk_usage(appliance, appliance)
+            update_generic_config(appliance)
         except Exception as e:
             print("An unexpected error occurred: {}".format(e))
 
